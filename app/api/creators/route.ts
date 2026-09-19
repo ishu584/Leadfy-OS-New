@@ -20,14 +20,14 @@ export async function GET(req: NextRequest) {
       where.availabilityStatus = availability;
     }
     if (niche) {
-      where.niches = { contains: niche };
+      where.niches = { contains: niche, mode: "insensitive" };
     }
     if (search) {
       where.OR = [
-        { name: { contains: search } },
-        { location: { contains: search } },
-        { languages: { contains: search } },
-        { niches: { contains: search } },
+        { name: { contains: search, mode: "insensitive" } },
+        { location: { contains: search, mode: "insensitive" } },
+        { languages: { contains: search, mode: "insensitive" } },
+        { niches: { contains: search, mode: "insensitive" } },
       ];
     }
 

@@ -38,22 +38,38 @@ To resolve the potential ambiguity noted in the specification:
 
 ---
 
-## PostgreSQL Production Configuration
+## PostgreSQL Production Architecture
 
-To deploy on PostgreSQL, update `.env`:
-```env
-DATABASE_URL="postgresql://user:password@localhost:5432/leadyfy_os?schema=public"
-```
-In `prisma/schema.prisma`, update:
+Prisma is configured for PostgreSQL (`provider = "postgresql"`).
+
 ```prisma
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 ```
-Then run the production migration command:
+
+### Applying Schema to PostgreSQL
+To apply the schema migrations to a PostgreSQL database:
 ```bash
-npx prisma migrate deploy
+npm run db:migrate
+# (Runs `prisma migrate deploy` using prisma/migrations/20260918000000_init/migration.sql)
 ```
 
-> Note: The migration workflow has been initialized with `prisma/migrations/20260918000000_init/migration.sql`. In local development/testing, SQLite is used and verified. For PostgreSQL deployments, apply the migration via `npm run db:migrate` (`prisma migrate deploy`).
+### Migrating Existing Data from dev.db to PostgreSQL
+The project includes automated, non-destructive migration scripts that preserve all existing CUID IDs, bcrypt password hashes, foreign keys, timestamps, and relational integrity from `dev.db`:
+
+**Method A: CLI Automated Migration**
+```bash
+# Set your target database URL and run:
+DATABASE_URL="<YOUR_POSTGRES_CONNECTION_STRING>" npm run db:migrate:data
+```
+
+**Method B: SQL Direct Execution (Neon Console / Supabase SQL Editor / psql)**
+Execute the generated `prisma/postgres_seed_data.sql` script directly into your PostgreSQL database. All statements use `ON CONFLICT ("id") DO NOTHING` for idempotent execution.
+
+### Verifying Migration & Auth
+Run the test and verification suite:
+```bash
+node scripts/verify-auth-and-migration.cjs
+```

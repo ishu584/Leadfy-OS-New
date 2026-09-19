@@ -1,8 +1,12 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 import { prisma } from "../lib/prisma";
 import { CreateClientSchema } from "../schemas/client";
+import { ensureDatabaseConnection } from "./db-helper";
 
 describe("END-TO-END: Complete UGC Agency Operational Lifecycle", () => {
+  beforeEach(async (ctx) => {
+    await ensureDatabaseConnection(ctx);
+  });
   it("executes the entire 14-step agency workflow using real database records", async () => {
     const timestamp = Date.now();
 

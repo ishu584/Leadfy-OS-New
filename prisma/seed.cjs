@@ -6,27 +6,13 @@ const prisma = new PrismaClient();
 async function main() {
   console.log("Seeding LEADYFY OS database...");
 
-  // Clean existing records in correct relation order
-  await prisma.activityLog.deleteMany({});
-  await prisma.notification.deleteMany({});
-  await prisma.ticketResponse.deleteMany({});
-  await prisma.supportTicket.deleteMany({});
-  await prisma.task.deleteMany({});
-  await prisma.creatorPayout.deleteMany({});
-  await prisma.expense.deleteMany({});
-  await prisma.payment.deleteMany({});
-  await prisma.videoFeedback.deleteMany({});
-  await prisma.video.deleteMany({});
-  await prisma.shoot.deleteMany({});
-  await prisma.creatorAvailability.deleteMany({});
-  await prisma.creator.deleteMany({});
-  await prisma.scriptComment.deleteMany({});
-  await prisma.script.deleteMany({});
-  await prisma.order.deleteMany({});
-  await prisma.asset.deleteMany({});
-  await prisma.client.deleteMany({});
-  await prisma.employee.deleteMany({});
-  await prisma.user.deleteMany({});
+  // Safe Idempotency Check: Do not overwrite or delete existing records
+  const existingUsersCount = await prisma.user.count();
+  if (existingUsersCount > 0) {
+    console.log(`✓ Database already initialized (${existingUsersCount} existing users found).`);
+    console.log("  Skipping seed to protect existing data and preserve user accounts.");
+    return;
+  }
 
   const defaultPassword = await bcrypt.hash("Password123!", 10);
 

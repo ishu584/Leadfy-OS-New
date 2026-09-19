@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
     const where: any = {};
     if (entityType) where.entityType = entityType;
     if (entityId) where.entityId = entityId;
-    if (action) where.action = { contains: action };
+    if (action) where.action = { contains: action, mode: "insensitive" };
 
     const [total, logs] = await Promise.all([
       prisma.activityLog.count({ where }),

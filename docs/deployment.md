@@ -4,11 +4,41 @@
 
 LEADYFY OS is built with Next.js 15 App Router, Prisma ORM, and Tailwind CSS. It is fully deployable to any Node.js container environment, VPS (Ubuntu/Debian), or cloud platform (Vercel, AWS ECS, Railway, Fly.io).
 
-## Prerequisites
+## Vercel Production Deployment
 
-- Node.js >= 20.0.0
-- PostgreSQL database >= 15.0
-- S3-compatible cloud storage bucket (AWS S3, Cloudflare R2, or Google Cloud Storage)
+### 1. Database Setup (Managed PostgreSQL)
+1. Provision a PostgreSQL instance using **Neon** (recommended for Vercel) or **Supabase**.
+2. Retrieve your PostgreSQL connection string:
+   - For Neon: `postgresql://[user]:[password]@[neon-hostname]/neondb?sslmode=require`
+   - For Supabase: Use the pooled connection string (port 6543) or direct connection.
+
+### 2. Run Database Migration & Staging
+From your local environment or deployment pipeline:
+```bash
+# 1. Apply PostgreSQL schema migrations:
+DATABASE_URL="<YOUR_POSTGRES_CONNECTION_STRING>" npx prisma migrate deploy
+
+# 2. Migrate existing records from dev.db to PostgreSQL:
+DATABASE_URL="<YOUR_POSTGRES_CONNECTION_STRING>" npm run db:migrate:data
+# (Alternatively, paste prisma/postgres_seed_data.sql into your Neon/Supabase SQL console)
+```
+
+### 3. Vercel Project Configuration
+- **Framework Preset**: Next.js
+- **Build Command**: `npm run build` (runs `prisma generate && next build`)
+- **Install Command**: `npm install`
+- **Node.js Version**: 20.x or 22.x
+
+### 4. Environment Variables on Vercel
+Add the following in **Vercel Project Settings → Environment Variables**:
+
+| Variable | Description | Example |
+| :--- | :--- | :--- |
+| `DATABASE_URL` | PostgreSQL connection string | `postgresql://user:pass@ep-xyz.us-east-2.aws.neon.tech/neondb?sslmode=require` |
+| `AUTH_SECRET` | 32+ character random secret | Generate via `openssl rand -hex 32` |
+| `NODE_ENV` | Production environment | `production` |
+| `NEXT_PUBLIC_APP_URL` | Your production Vercel domain | `https://your-app.vercel.app` |
+| `STORAGE_PROVIDER` | Media storage provider | `local` (or `s3` with AWS keys) |
 
 ---
 

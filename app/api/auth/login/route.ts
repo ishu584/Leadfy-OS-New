@@ -73,9 +73,18 @@ export async function POST(req: NextRequest) {
       user: sessionUser,
     });
   } catch (error: any) {
-    console.error("Login API error:", error);
+    const errorSummary = {
+      name: error?.name || "UnknownError",
+      message: error?.message || "No error message provided",
+      code: error?.code,
+      clientVersion: error?.clientVersion,
+    };
+    console.error("[AUTH_LOGIN_ERROR]", JSON.stringify(errorSummary));
     return NextResponse.json(
-      { error: "An unexpected error occurred during login." },
+      {
+        error: "An unexpected error occurred during login.",
+        code: "INTERNAL_AUTH_ERROR",
+      },
       { status: 500 }
     );
   }

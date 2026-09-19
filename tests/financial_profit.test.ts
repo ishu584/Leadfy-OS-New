@@ -1,7 +1,11 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 import { prisma } from "../lib/prisma";
+import { ensureDatabaseConnection } from "./db-helper";
 
 describe("Financial Engine, Net Profit, and Duplicate Payout Guard", () => {
+  beforeEach(async (ctx) => {
+    await ensureDatabaseConnection(ctx);
+  });
   it("calculates real Net Profit based on database records", async () => {
     const [payments, expenses, payouts] = await Promise.all([
       prisma.payment.findMany({ select: { amountReceived: true } }),

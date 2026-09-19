@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { isValidVideoTransition } from "../schemas/video";
 import { prisma } from "../lib/prisma";
+import { ensureDatabaseConnection } from "./db-helper";
 
 describe("9-Stage Video Production Pipeline & Client Review", () => {
   it("enforces strict linear 9-stage transitions", () => {
@@ -22,7 +23,8 @@ describe("9-Stage Video Production Pipeline & Client Review", () => {
     expect(isValidVideoTransition("FINAL_APPROVED", "DELIVERED")).toBe(true);
   });
 
-  it("records timestamped video feedback and increments revision counter", async () => {
+  it("records timestamped video feedback and increments revision counter", async (ctx) => {
+    if (!(await ensureDatabaseConnection(ctx))) return;
     const video = await prisma.video.findFirst();
     const user = await prisma.user.findFirst();
     expect(video).toBeTruthy();

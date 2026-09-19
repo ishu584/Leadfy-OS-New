@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { CreateClientSchema, UpdateClientSchema } from "../schemas/client";
 import { prisma } from "../lib/prisma";
+import { ensureDatabaseConnection } from "./db-helper";
 
 describe("CRITICAL: Client Schema Canonicalization & Complete Flow", () => {
   it("validates and canonicalizes payloads with either 'company_name' or 'company'", () => {
@@ -39,7 +40,8 @@ describe("CRITICAL: Client Schema Canonicalization & Complete Flow", () => {
     expect(() => CreateClientSchema.parse(payloadInvalid)).toThrow();
   });
 
-  it("executes the complete client lifecycle in the database: Insert -> Query -> Hub -> Edit -> Order Pipeline", async () => {
+  it("executes the complete client lifecycle in the database: Insert -> Query -> Hub -> Edit -> Order Pipeline", async (ctx) => {
+    if (!(await ensureDatabaseConnection(ctx))) return;
     const uniqueEmail = `test.client.${Date.now()}@agencytest.com`;
 
     // Step 1: Form & Validation Payload (testing 'company' compatibility)

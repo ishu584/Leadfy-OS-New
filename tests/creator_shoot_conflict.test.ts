@@ -1,7 +1,11 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 import { prisma } from "../lib/prisma";
+import { ensureDatabaseConnection } from "./db-helper";
 
 describe("Creator Scheduling & Double-Booking Prevention", () => {
+  beforeEach(async (ctx) => {
+    await ensureDatabaseConnection(ctx);
+  });
   it("prevents scheduling overlapping confirmed shoots for the same creator on the same date", async () => {
     // 1. Fetch an existing creator and client from seed
     const creator = await prisma.creator.findFirst({ where: { name: "Aarav Mehta" } });
