@@ -1,0 +1,443 @@
+// LEADYFY OS - Prisma Schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  passwordHash  String
+  name          String
+  role          String    // OWNER, ADMIN, EMPLOYEE, CLIENT
+  employeeRole  String?   // SALES, SCRIPT_WRITER, SHOOT_MANAGER, EDITOR
+  avatar        String?
+  active        Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  employeeProfile   Employee?
+  clientProfile     Client?             @relation("ClientUser")
+  assignedClients   Client[]            @relation("AssignedEmployee")
+  writtenScripts    Script[]            @relation("WriterScripts")
+  managedShoots     Shoot[]             @relation("ShootManagerShoots")
+  cameramanShoots   Shoot[]             @relation("CameramanShoots")
+  assignedVideos    Video[]             @relation("EditorVideos")
+  assignedTasks     Task[]              @relation("AssignedTasks")
+  expenses          Expense[]           @relation("RecordedExpenses")
+  notifications     Notification[]      @relation("UserNotifications")
+  scriptComments    ScriptComment[]     @relation("UserScriptComments")
+  assignedTickets   SupportTicket[]     @relation("AssignedTickets")
+
+  @@index([email])
+  @@index([role])
+}
+
+model Employee {
+  id           String    @id @default(cuid())
+  userId       String    @unique
+  employeeCode String    @unique
+  roleType     String    // SALES, SCRIPT_WRITER, SHOOT_MANAGER, EDITOR
+  salary       Float     // Confidential - Owner & Admin only
+  joiningDate  DateTime
+  department   String
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Client {
+  id                 String    @id @default(cuid())
+  userId             String?   @unique
+  name               String
+  companyName        String    // CANONICAL FIELD: company_name
+  email              String    @unique
+  phone              String
+  whatsapp           String?
+  brandName          String
+  industry           String
+  taxId              String?   // GST or Tax registration number
+  assignedEmployeeId String?
+  source             String?
+  status             String    @default("LEAD") // LEAD, NEW, ONBOARDING, ACTIVE, ON_HOLD, COMPLETED, INACTIVE
+  assets             String?   // Brand guidelines / Assets URL / Drive link
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  user               User?           @relation("ClientUser", fields: [userId], references: [id], onDelete: SetNull)
+  assignedEmployee   User?           @relation("AssignedEmployee", fields: [assignedEmployeeId], references: [id], onDelete: SetNull)
+  orders             Order[]
+  scripts            Script[]
+  shoots             Shoot[]
+  videos             Video[]
+  payments           Payment[]
+  supportTickets     SupportTicket[]
+  assetsList         Asset[]
+
+  @@index([email])
+  @@index([status])
+  @@index([companyName])
+}
+
+model Order {
+  id                   String    @id @default(cuid())
+  clientId             String
+  packageName          String
+  contractedVideoCount Int
+  pricing              Float
+  taxAmount            Float     @default(0)
+  totalAmount          Float
+  amountReceived       Float     @default(0)
+  outstandingBalance   Float
+  startDate            DateTime
+  dueDate              DateTime
+  assignedTeamId       String?
+  status               String    @default("NEW") // NEW, ONBOARDING, IN_PRODUCTION, PARTIALLY_DELIVERED, COMPLETED, ON_HOLD, CANCELLED
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  client               Client          @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  scripts              Script[]
+  shoots               Shoot[]
+  videos               Video[]
+  payments             Payment[]
+  creatorPayouts       CreatorPayout[]
+
+  @@index([clientId])
+  @@index([status])
+}
+
+model Script {
+  id             String    @id @default(cuid())
+  clientId       String
+  orderId        String
+  videoNumber    Int
+  writerId       String?
+  creatorId      String?
+  language       String    @default("English")
+  scriptText     String
+  referenceLinks String?
+  deadline       DateTime?
+  revisionCount  Int       @default(0)
+  status         String    @default("DRAFT") // DRAFT, ASSIGNED, IN_REVIEW, SENT_TO_CLIENT, REVISION_REQUIRED, APPROVED, READY_FOR_SHOOT
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  client         Client          @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  order          Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  writer         User?           @relation("WriterScripts", fields: [writerId], references: [id], onDelete: SetNull)
+  creator        Creator?        @relation(fields: [creatorId], references: [id], onDelete: SetNull)
+  comments       ScriptComment[]
+  video          Video?
+
+  @@index([clientId])
+  @@index([orderId])
+  @@index([status])
+}
+
+model ScriptComment {
+  id          String   @id @default(cuid())
+  scriptId    String
+  authorId    String
+  authorRole  String
+  commentText String
+  createdAt   DateTime @default(now())
+
+  script      Script   @relation(fields: [scriptId], references: [id], onDelete: Cascade)
+  author      User     @relation("UserScriptComments", fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([scriptId])
+}
+
+model Creator {
+  id                 String    @id @default(cuid())
+  name               String
+  photo              String?
+  gender             String
+  ageGroup           String
+  languages          String
+  location           String
+  niches             String
+  demographics       String?
+  phone              String
+  email              String
+  rates              Float     // per video rate
+  bankDetails        String?   // UPI ID / Bank info
+  portfolioLinks     String?
+  availabilityStatus String    @default("AVAILABLE") // AVAILABLE, BOOKED, UNAVAILABLE, ON_HOLD
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  scripts            Script[]
+  shoots             Shoot[]
+  videos             Video[]
+  payouts            CreatorPayout[]
+  availabilities     CreatorAvailability[]
+
+  @@index([availabilityStatus])
+  @@index([location])
+}
+
+model CreatorAvailability {
+  id        String   @id @default(cuid())
+  creatorId String
+  date      String   // Format YYYY-MM-DD
+  isBooked  Boolean  @default(false)
+  notes     String?
+
+  creator   Creator  @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+
+  @@unique([creatorId, date])
+  @@index([date])
+}
+
+model Shoot {
+  id                   String    @id @default(cuid())
+  clientId             String
+  orderId              String
+  creatorId            String
+  shootManagerId       String?
+  cameramanId          String?
+  shootingAssistantId  String?
+  shootDate            DateTime
+  shootTime            String
+  location             String
+  approvedScriptIds    String    @default("[]") // JSON string array
+  specialNotes         String?
+  status               String    @default("SCHEDULED") // SCHEDULED, CONFIRMED, IN_PROGRESS, COMPLETED, CANCELLED, RESHOOT_REQUIRED
+  preShootChecklist    String    @default("{\"scriptApproval\":false,\"creatorConfirmation\":false,\"locationPermissions\":false,\"clientProductReceipt\":false,\"teamBriefing\":false}")
+  postShootVerification String   @default("{\"footageUploaded\":false,\"rawFileIntegrity\":false,\"reshootFlag\":false}")
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  client               Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  order                Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  creator              Creator   @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  shootManager         User?     @relation("ShootManagerShoots", fields: [shootManagerId], references: [id], onDelete: SetNull)
+  cameraman            User?     @relation("CameramanShoots", fields: [cameramanId], references: [id], onDelete: SetNull)
+  videos               Video[]
+
+  @@index([clientId])
+  @@index([creatorId])
+  @@index([shootDate])
+  @@index([status])
+}
+
+model Video {
+  id               String    @id @default(cuid())
+  clientId         String
+  orderId          String
+  scriptId         String?   @unique
+  creatorId        String?
+  shootId          String?
+  assignedEditorId String?
+  deadline         DateTime?
+  rawFootageUrl    String?
+  editDraftUrl     String?
+  thumbnail        String?
+  finalDeliveryUrl String?
+  revisionCount    Int       @default(0)
+  status           String    @default("SCRIPT_APPROVED") // SCRIPT_APPROVED, SHOOT_PENDING, RAW_FOOTAGE_RECEIVED, VIDEO_EDITING, INTERNAL_QA, CLIENT_REVIEW, REVISION, FINAL_APPROVED, DELIVERED
+  finalApprovedAt  DateTime?
+  deliveredAt      DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  client           Client          @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  order            Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  script           Script?         @relation(fields: [scriptId], references: [id], onDelete: SetNull)
+  creator          Creator?        @relation(fields: [creatorId], references: [id], onDelete: SetNull)
+  shoot            Shoot?          @relation(fields: [shootId], references: [id], onDelete: SetNull)
+  assignedEditor   User?           @relation("EditorVideos", fields: [assignedEditorId], references: [id], onDelete: SetNull)
+  feedbacks        VideoFeedback[]
+  payout           CreatorPayout?
+
+  @@index([clientId])
+  @@index([orderId])
+  @@index([assignedEditorId])
+  @@index([status])
+}
+
+model VideoFeedback {
+  id             String   @id @default(cuid())
+  videoId        String
+  authorId       String
+  authorName     String
+  timestampCode  String   // e.g. "00:42"
+  feedbackText   String
+  revisionNumber Int
+  createdAt      DateTime @default(now())
+
+  video          Video    @relation(fields: [videoId], references: [id], onDelete: Cascade)
+
+  @@index([videoId])
+}
+
+model Payment {
+  id             String    @id @default(cuid())
+  orderId        String
+  clientId       String
+  invoiceAmount  Float
+  amountReceived Float
+  pendingBalance Float
+  paymentDate    DateTime  @default(now())
+  paymentMethod  String    // Bank Transfer, UPI, Credit Card, Cash
+  transactionRef String?
+  notes          String?
+  status         String    @default("UNPAID") // UNPAID, PARTIALLY_PAID, PAID, OVERDUE
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  order          Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  client         Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@index([clientId])
+  @@index([status])
+}
+
+model Expense {
+  id           String   @id @default(cuid())
+  category     String   // SALARIES, OFFICE, STUDIO, EQUIPMENT, FUEL, PAYOUTS
+  amount       Float
+  recordedById String
+  date         DateTime @default(now())
+  receiptUrl   String?
+  notes        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  recordedBy   User     @relation("RecordedExpenses", fields: [recordedById], references: [id], onDelete: Cascade)
+
+  @@index([category])
+  @@index([date])
+}
+
+model CreatorPayout {
+  id             String    @id @default(cuid())
+  creatorId      String
+  orderId        String
+  videoId        String    @unique // Strict: A video cannot have duplicate payouts!
+  videoCount     Int       @default(1)
+  contractedRate Float
+  totalPayout    Float
+  paymentDate    DateTime?
+  transactionRef String?
+  status         String    @default("PENDING") // PENDING, APPROVED, PAID
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  creator        Creator   @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  order          Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  video          Video     @relation(fields: [videoId], references: [id], onDelete: Cascade)
+
+  @@index([creatorId])
+  @@index([orderId])
+  @@index([status])
+}
+
+model Task {
+  id          String    @id @default(cuid())
+  title       String
+  description String?
+  assigneeId  String?
+  priority    String    @default("MEDIUM") // URGENT, HIGH, MEDIUM, LOW
+  deadline    DateTime?
+  status      String    @default("TO_DO") // TO_DO, IN_PROGRESS, DONE
+  attachments String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  assignee    User?     @relation("AssignedTasks", fields: [assigneeId], references: [id], onDelete: SetNull)
+
+  @@index([assigneeId])
+  @@index([status])
+  @@index([priority])
+}
+
+model SupportTicket {
+  id           String           @id @default(cuid())
+  clientId     String
+  subject      String
+  message      String
+  priority     String           @default("MEDIUM") // URGENT, HIGH, MEDIUM, LOW
+  status       String           @default("OPEN") // OPEN, IN_PROGRESS, RESOLVED
+  assignedToId String?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  client       Client           @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  assignedTo   User?            @relation("AssignedTickets", fields: [assignedToId], references: [id], onDelete: SetNull)
+  responses    TicketResponse[]
+
+  @@index([clientId])
+  @@index([status])
+}
+
+model TicketResponse {
+  id         String        @id @default(cuid())
+  ticketId   String
+  authorId   String
+  authorName String
+  authorRole String
+  message    String
+  createdAt  DateTime      @default(now())
+
+  ticket     SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId])
+}
+
+model Notification {
+  id          String   @id @default(cuid())
+  recipientId String
+  type        String   // ONBOARDING, SCRIPT_ASSIGNED, SCRIPT_APPROVED, SHOOT_REMINDER, etc.
+  title       String
+  message     String
+  entityType  String?
+  entityId    String?
+  isRead      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  recipient   User     @relation("UserNotifications", fields: [recipientId], references: [id], onDelete: Cascade)
+
+  @@index([recipientId])
+  @@index([isRead])
+}
+
+model ActivityLog {
+  id         String   @id @default(cuid())
+  actorId    String
+  actorName  String
+  action     String   // CREATE, UPDATE, DELETE, STATUS_CHANGE, APPROVAL, REVISION, PAYMENT, etc.
+  entityType String   // CLIENT, ORDER, SCRIPT, SHOOT, VIDEO, PAYMENT, etc.
+  entityId   String
+  metadata   String?  // JSON string
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([actorId])
+  @@index([createdAt])
+}
+
+model Asset {
+  id           String   @id @default(cuid())
+  clientId     String?
+  name         String
+  fileType     String
+  fileUrl      String
+  fileSize     Int
+  uploadedById String
+  createdAt    DateTime @default(now())
+
+  client       Client?  @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([clientId])
+}
